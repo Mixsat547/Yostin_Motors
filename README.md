@@ -9,6 +9,11 @@ API web en .NET 10 para la gestión de una tienda de motocicletas: clientes, dir
 - Scalar para probar los endpoints
 - OAuth 2 con sesión de servidor (Discord, Google y los proveedores del otro integrante)
 
+## IMPORTANTE
+Para evitar conflictos es necesario instalar las versiones correctas de los Paquetes
+- Paquetes NuGet con versión fija para .NET 10: 
+Microsoft.EntityFrameworkCore 10.0.3, Microsoft.EntityFrameworkCore.Design 10.0.3 y Npgsql.EntityFrameworkCore.PostgreSQL 10.0.0 (instalar siempre con --version)
+
 ## Equipo y reparto
 
 | Integrante | Rol | GitHub | Tablas | Proveedores de login |
