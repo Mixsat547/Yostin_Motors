@@ -1,0 +1,45 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ProyectoMotors.Data;
+using ProyectoMotors.Filtros;
+using ProyectoMotors.Modelos;
+
+namespace ProyectoMotors.Controllers;
+
+[ApiController]
+[Route("api/pedidos")]
+[SesionRequerida]
+public class PedidosController : ControllerBase
+{
+    private readonly AppDbContext _db;
+    public PedidosController(AppDbContext db) => _db = db;
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<Pedido>>> GetLista()
+        => Ok(await _db.Pedidos.AsNoTracking().ToListAsync());
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<Pedido>> GetPorId(int id)
+    {
+        var p = await _db.Pedidos.AsNoTracking().FirstOrDefaultAsync(x => x.IdPedido == id);
+        return p is null ? NotFound() : Ok(p);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<Pedido>> Post(Pedido pedido)
+    {
+        if (!await _db.Clientes.AnyAsync(c => c.IdCliente == pedido.IdCliente))
+            return BadRequest(new { mensaje = "El cliente indicado no existe." });
+
+        if (!await _db.Direcciones.AnyAsync(d => d.IdDireccion == pedido.IdDireccion))
+            return BadRequest(new { mensaje = "La dirección indicada no existe." });
+
+        pedido.IdPedido = 0;
+        pedido.FechaPedido = DateTime.UtcNow;
+        pedido.Activo = true;
+
+        _db.Pedidos.Add(pedido);
+        await _db.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetPorId), new { id = pedido.IdPedido }, pedido);
+    }
+}
