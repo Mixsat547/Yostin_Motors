@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMotors.Data;
-using ProyectoMotors.Filtros;
+using Microsoft.AspNetCore.Authorization;
 using ProyectoMotors.Modelos;
 
 namespace ProyectoMotors.Controllers;
 
 [ApiController]
 [Route("api/clientes")]
-[SesionRequerida]
+[Authorize]
 public class ClientesController : ControllerBase
 {
     private readonly AppDbContext _db;

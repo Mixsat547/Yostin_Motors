@@ -1,6 +1,9 @@
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ProyectoMotors.Controllers;
@@ -18,7 +21,23 @@ public class AuthController : ControllerBase
         _httpFactory = httpFactory;
     }
 
-    // 1. Redirige al usuario a Discord para que autorice la app
+    // Crea la cookie de autenticación con la identidad del usuario
+    private async Task IniciarSesion(string id, string nombre, string proveedor)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, id),
+            new(ClaimTypes.Name, nombre),
+            new("provider", proveedor),
+            new(ClaimTypes.Role, "Usuario")
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity));
+    }
+
+    // ---------------- DISCORD ----------------
+
     [HttpGet("discord/login")]
     public IActionResult DiscordLogin()
     {
@@ -28,7 +47,6 @@ public class AuthController : ControllerBase
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
             return StatusCode(500, "Falta la configuración de Discord (user-secrets).");
 
-        // "state" protege contra CSRF: lo guardamos y lo comparamos al volver
         var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
         HttpContext.Session.SetString("oauth_state", state);
 
@@ -42,7 +60,6 @@ public class AuthController : ControllerBase
         return Redirect(url);
     }
 
-    // 2. Discord devuelve al usuario aquí con un "code"
     [HttpGet("discord/callback")]
     public async Task<IActionResult> DiscordCallback(string? code, string? state, string? error)
     {
@@ -57,7 +74,6 @@ public class AuthController : ControllerBase
 
         var client = _httpFactory.CreateClient();
 
-        // 3. Cambiar el code por un access_token
         var tokenResponse = await client.PostAsync("https://discord.com/api/oauth2/token",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -74,7 +90,6 @@ public class AuthController : ControllerBase
         using var tokenJson = JsonDocument.Parse(await tokenResponse.Content.ReadAsStringAsync());
         var accessToken = tokenJson.RootElement.GetProperty("access_token").GetString();
 
-        // 4. Pedir la identidad del usuario
         var request = new HttpRequestMessage(HttpMethod.Get, "https://discord.com/api/users/@me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         var userResponse = await client.SendAsync(request);
@@ -86,42 +101,13 @@ public class AuthController : ControllerBase
         var id = userJson.RootElement.GetProperty("id").GetString();
         var username = userJson.RootElement.GetProperty("username").GetString();
 
-        // 5. Guardar la identidad en la sesión
-        HttpContext.Session.SetString("UserId", id!);
-        HttpContext.Session.SetString("UserName", username!);
-        HttpContext.Session.SetString("Provider", "Discord");
+        await IniciarSesion(id!, username!, "Discord");
 
         return Redirect("/api/auth/me");
     }
 
-    // Muestra la identidad de la sesión, o 401 si no hay
-    [HttpGet("me")]
-    public IActionResult Me()
-    {
-        var userId = HttpContext.Session.GetString("UserId");
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized(new { mensaje = "No hay sesión iniciada." });
+    // ---------------- GOOGLE ----------------
 
-        return Ok(new
-        {
-            userId,
-            userName = HttpContext.Session.GetString("UserName"),
-            provider = HttpContext.Session.GetString("Provider")
-        });
-    }
-
-    // Cierra la sesión
-    [HttpGet("logout")]
-    public IActionResult Logout()
-    {
-        HttpContext.Session.Clear();
-        return Ok(new { mensaje = "Sesión cerrada." });
-    }
-
-
-    //GOOGLE
-
-        // 1. Redirige al usuario a Google para que autorice la app
     [HttpGet("google/login")]
     public IActionResult GoogleLogin()
     {
@@ -144,7 +130,6 @@ public class AuthController : ControllerBase
         return Redirect(url);
     }
 
-    // 2. Google devuelve al usuario aquí con un "code"
     [HttpGet("google/callback")]
     public async Task<IActionResult> GoogleCallback(string? code, string? state, string? error)
     {
@@ -159,7 +144,6 @@ public class AuthController : ControllerBase
 
         var client = _httpFactory.CreateClient();
 
-        // 3. Cambiar el code por un access_token
         var tokenResponse = await client.PostAsync("https://oauth2.googleapis.com/token",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -176,7 +160,6 @@ public class AuthController : ControllerBase
         using var tokenJson = JsonDocument.Parse(await tokenResponse.Content.ReadAsStringAsync());
         var accessToken = tokenJson.RootElement.GetProperty("access_token").GetString();
 
-        // 4. Pedir la identidad del usuario
         var request = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v3/userinfo");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         var userResponse = await client.SendAsync(request);
@@ -188,11 +171,32 @@ public class AuthController : ControllerBase
         var id = userJson.RootElement.GetProperty("sub").GetString();
         var name = userJson.RootElement.TryGetProperty("name", out var n) ? n.GetString() : "Usuario Google";
 
-        // 5. Guardar la identidad en la sesión
-        HttpContext.Session.SetString("UserId", id!);
-        HttpContext.Session.SetString("UserName", name ?? "Usuario Google");
-        HttpContext.Session.SetString("Provider", "Google");
+        await IniciarSesion(id!, name ?? "Usuario Google", "Google");
 
         return Redirect("/api/auth/me");
+    }
+
+    // ---------------- SESIÓN ----------------
+
+    [HttpGet("me")]
+    public IActionResult Me()
+    {
+        if (User.Identity?.IsAuthenticated != true)
+            return Unauthorized(new { mensaje = "No hay sesión iniciada." });
+
+        return Ok(new
+        {
+            userId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+            userName = User.Identity!.Name,
+            provider = User.FindFirstValue("provider"),
+            rol = User.FindFirstValue(ClaimTypes.Role)
+        });
+    }
+
+    [HttpGet("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Ok(new { mensaje = "Sesión cerrada." });
     }
 }

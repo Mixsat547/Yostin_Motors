@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoMotors.Data;
-using ProyectoMotors.Filtros;
+using Microsoft.AspNetCore.Authorization;
 using ProyectoMotors.Modelos;
 
 namespace ProyectoMotors.Controllers;
 
 [ApiController]
 [Route("api/detalles-pedido")]
-[SesionRequerida]
+[Authorize]
 public class DetallesPedidoController : ControllerBase
 {
     private readonly AppDbContext _db;
