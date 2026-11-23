@@ -23,14 +23,14 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+    {
+        options.WithJavaScriptConfiguration("/scalar-config.js");
+    });
 }
 
 app.UseHttpsRedirection();
-
+app.UseStaticFiles();   // sirve wwwroot/scalar-config.js
 app.UseSession();
-
 app.MapControllers();
-
 app.Run();
-
