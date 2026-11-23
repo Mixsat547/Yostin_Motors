@@ -103,7 +103,7 @@ public class AuthController : ControllerBase
 
         await IniciarSesion(id!, username!, "Discord");
 
-        return Redirect("/api/auth/me");
+        return Redirect("/");
     }
 
     // ---------------- GOOGLE ----------------
@@ -173,7 +173,7 @@ public class AuthController : ControllerBase
 
         await IniciarSesion(id!, name ?? "Usuario Google", "Google");
 
-        return Redirect("/api/auth/me");
+        return Redirect("/");
     }
 
     // ---------------- SESIÓN ----------------

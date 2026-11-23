@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yostin Motors</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f4f6; margin: 0; }
+    main { max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    section { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    h1 { margin-top: 0; }
+    .btn, button { display: inline-block; padding: 10px 16px; border: 0; border-radius: 6px; color: #fff; text-decoration: none; cursor: pointer; font-size: 15px; margin-right: 8px; background: #333; }
+    .discord { background: #5865f2; }
+    .google { background: #db4437; }
+    pre { background: #111; color: #9f9; padding: 12px; border-radius: 6px; overflow: auto; max-height: 260px; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Yostin Motors</h1>
+
+  <section id="login">
+    <p>Inicia sesión con:</p>
+    <div id="botones"></div>
+  </section>
+
+  <section id="sesion" hidden>
+    <p>Sesión iniciada como <strong id="nombre"></strong></p>
+    <ul>
+      <li>Proveedor: <span id="proveedor"></span></li>
+      <li>Rol: <span id="rol"></span></li>
+      <li>Id: <span id="userId"></span></li>
+    </ul>
+    <button id="logout">Cerrar sesión</button>
+  </section>
+
+  <section>
+    <h2>Recurso protegido</h2>
+    <button id="clientes">Consultar clientes</button>
+    <pre id="resultado">Pulsa el botón para consultar /api/clientes</pre>
+  </section>
+</main>
+
+<script>
+  // Dirección de la API. Vacía = el mismo servidor que sirve esta página.
+  const API = "";
+
+  // Un botón por cada proveedor implementado
+  const PROVEEDORES = [
+    { id: "discord", nombre: "Discord", clase: "discord" },
+    { id: "google", nombre: "Google", clase: "google" }
+  ];
+
+  const $ = id => document.getElementById(id);
+
+  PROVEEDORES.forEach(p => {
+    const a = document.createElement("a");
+    a.className = "btn " + p.clase;
+    a.href = `${API}/api/auth/${p.id}/login`;
+    a.textContent = "Entrar con " + p.nombre;
+    $("botones").appendChild(a);
+  });
+
+  async function cargarSesion() {
+    const r = await fetch(`${API}/api/auth/me`, { credentials: "include" });
+    if (r.ok) {
+      const u = await r.json();
+      $("nombre").textContent = u.userName;
+      $("proveedor").textContent = u.provider;
+      $("rol").textContent = u.rol;
+      $("userId").textContent = u.userId;
+      $("login").hidden = true;
+      $("sesion").hidden = false;
+    } else {
+      $("login").hidden = false;
+      $("sesion").hidden = true;
+    }
+  }
+
+  $("logout").addEventListener("click", async () => {
+    await fetch(`${API}/api/auth/logout`, { credentials: "include" });
+    $("resultado").textContent = "Sesión cerrada.";
+    await cargarSesion();
+  });
+
+  $("clientes").addEventListener("click", async () => {
+    const r = await fetch(`${API}/api/clientes`, { credentials: "include" });
+    const texto = r.ok ? JSON.stringify(await r.json(), null, 2) : "";
+    $("resultado").textContent = `HTTP ${r.status}\n` + texto;
+  });
+
+  cargarSesion();
+</script>
+</body>
+</html>
