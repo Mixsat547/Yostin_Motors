@@ -30,6 +30,16 @@ Guarda las credenciales de los proveedores fuera del repositorio, con user-secre
 Aplica las migraciones: dotnet ef database update
 Ejecuta con el perfil HTTPS, que el login necesita: dotnet run --launch-profile https
 Abre Scalar en https://localhost:7025/scalar. Para probar los endpoints, inicia sesión antes en /api/auth/discord/login o /api/auth/google/login, en la misma ventana del navegador. Sin sesión los endpoints responden 401. Para cerrar sesión usa /api/auth/logout.
+
+## Imagen en Docker Hub
+
+- Repositorio: https://hub.docker.com/r/TU_USUARIO/yostinmotors
+- Referencia: `TU_USUARIO/yostinmotors:1.0.0`
+- Descargar: `docker pull TU_USUARIO/yostinmotors:1.0.0`
+- Se construye con `Dockerfile.YeltsinSardina` (proyecto `ProyectoMotors.csproj`):
+  `docker build -f Dockerfile.YeltsinSardina -t TU_USUARIO/yostinmotors:1.0.0 .`
+- La imagen no incluye credenciales: se pasan como variables de entorno (ver `.env.example`).
+
 Cómo contribuir
 
 Lee CONTRIBUTING.md. Todos los aportes entran mediante Pull Request desde un fork, y ningún integrante es colaborador del repositorio base.
