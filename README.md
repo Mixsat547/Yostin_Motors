@@ -33,11 +33,11 @@ Abre Scalar en https://localhost:7025/scalar. Para probar los endpoints, inicia 
 
 ## Imagen en Docker Hub
 
-- Repositorio: https://hub.docker.com/r/TU_USUARIO/yostinmotors
-- Referencia: `TU_USUARIO/yostinmotors:1.0.0`
-- Descargar: `docker pull TU_USUARIO/yostinmotors:1.0.0`
+- Repositorio: https://hub.docker.com/r/yeltsinsardina/yostinmotors
+- Referencia: `yeltsinsardina/yostinmotors:1.0.0`
+- Descargar: `docker pull yeltsinsardina/yostinmotors:1.0.0`
 - Se construye con `Dockerfile.YeltsinSardina` (proyecto `ProyectoMotors.csproj`):
-  `docker build -f Dockerfile.YeltsinSardina -t TU_USUARIO/yostinmotors:1.0.0 .`
+  `docker build -f Dockerfile.YeltsinSardina -t yeltsinsardina/yostinmotors:1.0.0 .`
 - La imagen no incluye credenciales: se pasan como variables de entorno (ver `.env.example`).
 
 Cómo contribuir
