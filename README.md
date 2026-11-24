@@ -40,6 +40,17 @@ Abre Scalar en https://localhost:7025/scalar. Para probar los endpoints, inicia 
   `docker build -f Dockerfile.YeltsinSardina -t yeltsinsardina/yostinmotors:1.0.0 .`
 - La imagen no incluye credenciales: se pasan como variables de entorno (ver `.env.example`).
 
+## Release con cuatro instancias
+
+Usa la imagen publicada en Docker Hub, sin compilar el código.
+
+1. Copia `.env.example` como `.env` y completa los valores, incluida `API_IMAGE` (`yeltsinsardina/yostinmotors:1.0.0`).
+2. Registra en Discord y Google las URL de retorno de los puertos 5001 a 5004 (`http://localhost:500X/api/auth/discord/callback` y `.../google/callback`).
+3. `docker compose -f docker-compose.release.yml pull`
+4. `docker compose -f docker-compose.release.yml up -d`
+5. Las instancias quedan en `http://localhost:5001`, `5002`, `5003` y `5004`. La primera crea las tablas al iniciar.
+6. Inicia sesión en un puerto (`/api/auth/discord/login`) y comprueba `/api/auth/me` y `/api/reportes/clientes-pedidos` en los demás. Las cuatro comparten la cookie mediante el volumen `keys`.
+
 Cómo contribuir
 
 Lee CONTRIBUTING.md. Todos los aportes entran mediante Pull Request desde un fork, y ningún integrante es colaborador del repositorio base.
