@@ -302,4 +302,206 @@ public class AuthController : ControllerBase
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Ok(new { mensaje = "Sesión cerrada." });
     }
+
+    // TWITCH
+
+    [HttpGet("twitch/login")]
+    public IActionResult TwitchLogin()
+    {
+        var clientId = _config["Twitch:ClientId"];
+        var redirectUri = _config["Twitch:RedirectUri"];
+
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
+            return StatusCode(500, "Falta la configuración de Twitch.");
+
+        var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+        HttpContext.Session.SetString("twitch_oauth_state", state);
+
+        var url = "https://id.twitch.tv/oauth2/authorize"
+                + $"?client_id={Uri.EscapeDataString(clientId)}"
+                + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
+                + "&response_type=code"
+                + "&scope=" + Uri.EscapeDataString("user:read:email")
+                + $"&state={state}";
+
+        return Redirect(url);
+    }
+
+    [HttpGet("twitch/callback")]
+    public async Task<IActionResult> TwitchCallback(string? code, string? state, string? error)
+    {
+        if (!string.IsNullOrEmpty(error))
+            return BadRequest($"Twitch devolvió un error: {error}");
+
+        var expectedState = HttpContext.Session.GetString("twitch_oauth_state");
+
+        if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state) || state != expectedState)
+            return BadRequest("Estado inválido o código ausente.");
+
+        HttpContext.Session.Remove("twitch_oauth_state");
+
+        var clientId = _config["Twitch:ClientId"];
+        var clientSecret = _config["Twitch:ClientSecret"];
+        var redirectUri = _config["Twitch:RedirectUri"];
+
+        if (string.IsNullOrEmpty(clientId) ||
+            string.IsNullOrEmpty(clientSecret) ||
+            string.IsNullOrEmpty(redirectUri))
+            return StatusCode(500, "Falta la configuración de Twitch.");
+
+        var client = _httpFactory.CreateClient();
+
+        var tokenResponse = await client.PostAsync(
+            "https://id.twitch.tv/oauth2/token",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["redirect_uri"] = redirectUri
+            }));
+
+        if (!tokenResponse.IsSuccessStatusCode)
+            return StatusCode(502, "No se pudo obtener el token de Twitch.");
+
+        using var tokenJson = JsonDocument.Parse(
+            await tokenResponse.Content.ReadAsStringAsync());
+
+        var accessToken = tokenJson.RootElement
+            .GetProperty("access_token").GetString();
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get, "https://api.twitch.tv/helix/users");
+
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        request.Headers.Add("Client-Id", clientId);
+
+        var userResponse = await client.SendAsync(request);
+
+        if (!userResponse.IsSuccessStatusCode)
+            return StatusCode(502, "No se pudo obtener el usuario de Twitch.");
+
+        using var userJson = JsonDocument.Parse(
+            await userResponse.Content.ReadAsStringAsync());
+
+        var users = userJson.RootElement.GetProperty("data");
+
+        if (users.GetArrayLength() == 0)
+            return NotFound("No se encontró el usuario de Twitch.");
+
+        var user = users[0];
+        var id = user.GetProperty("id").GetString();
+        var name = user.GetProperty("display_name").GetString();
+
+        HttpContext.Session.SetString("UserId", id!);
+        HttpContext.Session.SetString("UserName", name ?? "Usuario Twitch");
+        HttpContext.Session.SetString("Provider", "Twitch");
+
+        return Redirect("/api/auth/me");
+    }
+        // MICROSOFT
+
+    [HttpGet("microsoft/login")]
+    public IActionResult MicrosoftLogin()
+    {
+        var clientId = _config["Microsoft:ClientId"];
+        var redirectUri = _config["Microsoft:RedirectUri"];
+
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
+            return StatusCode(500, "Falta la configuración de Microsoft.");
+
+        var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+        HttpContext.Session.SetString("microsoft_oauth_state", state);
+
+        var url = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+                + $"?client_id={Uri.EscapeDataString(clientId)}"
+                + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
+                + "&response_type=code"
+                + "&response_mode=query"
+                + "&scope=" + Uri.EscapeDataString("openid profile email User.Read")
+                + $"&state={state}";
+
+        return Redirect(url);
+    }
+
+    [HttpGet("microsoft/callback")]
+    public async Task<IActionResult> MicrosoftCallback(
+        string? code, string? state, string? error)
+    {
+        if (!string.IsNullOrEmpty(error))
+            return BadRequest($"Microsoft devolvió un error: {error}");
+
+        var expectedState = HttpContext.Session.GetString("microsoft_oauth_state");
+
+        if (string.IsNullOrEmpty(code) ||
+            string.IsNullOrEmpty(state) ||
+            state != expectedState)
+            return BadRequest("Estado inválido o código ausente.");
+
+        HttpContext.Session.Remove("microsoft_oauth_state");
+
+        var clientId = _config["Microsoft:ClientId"];
+        var clientSecret = _config["Microsoft:ClientSecret"];
+        var redirectUri = _config["Microsoft:RedirectUri"];
+
+        if (string.IsNullOrEmpty(clientId) ||
+            string.IsNullOrEmpty(clientSecret) ||
+            string.IsNullOrEmpty(redirectUri))
+            return StatusCode(500, "Falta la configuración de Microsoft.");
+
+        var client = _httpFactory.CreateClient();
+
+        var tokenResponse = await client.PostAsync(
+            "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["redirect_uri"] = redirectUri,
+                ["scope"] = "openid profile email User.Read"
+            }));
+
+        if (!tokenResponse.IsSuccessStatusCode)
+            return StatusCode(502, "No se pudo obtener el token de Microsoft.");
+
+        using var tokenJson = JsonDocument.Parse(
+            await tokenResponse.Content.ReadAsStringAsync());
+
+        var accessToken = tokenJson.RootElement
+            .GetProperty("access_token").GetString();
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName");
+
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var userResponse = await client.SendAsync(request);
+
+        if (!userResponse.IsSuccessStatusCode)
+            return StatusCode(502, "No se pudo obtener el usuario de Microsoft.");
+
+        using var userJson = JsonDocument.Parse(
+            await userResponse.Content.ReadAsStringAsync());
+
+        var id = userJson.RootElement.GetProperty("id").GetString();
+
+        var name = userJson.RootElement
+            .TryGetProperty("displayName", out var displayName)
+            ? displayName.GetString()
+            : "Usuario Microsoft";
+
+        HttpContext.Session.SetString("UserId", id!);
+        HttpContext.Session.SetString("UserName", name ?? "Usuario Microsoft");
+        HttpContext.Session.SetString("Provider", "Microsoft");
+
+        return Redirect("/api/auth/me");
+    }
+
 }

@@ -22,6 +22,31 @@ namespace ProyectoMotors.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("ProyectoMotors.Modelos.Categoria", b =>
+                {
+                    b.Property<int>("IdCategoria")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdCategoria"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("IdCategoria");
+
+                    b.ToTable("Categorias");
+                });
+
             modelBuilder.Entity("ProyectoMotors.Modelos.Cliente", b =>
                 {
                     b.Property<int>("IdCliente")
@@ -92,6 +117,8 @@ namespace ProyectoMotors.Migrations
 
                     b.HasIndex("IdPedido");
 
+                    b.HasIndex("IdProducto");
+
                     b.ToTable("DetallesPedido");
                 });
 
@@ -143,6 +170,62 @@ namespace ProyectoMotors.Migrations
                     b.ToTable("Direcciones");
                 });
 
+            modelBuilder.Entity("ProyectoMotors.Modelos.Inventario", b =>
+                {
+                    b.Property<int>("IdInventario")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdInventario"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("FechaActualizacion")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("IdProducto")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Stock")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StockMinimo")
+                        .HasColumnType("integer");
+
+                    b.HasKey("IdInventario");
+
+                    b.HasIndex("IdProducto")
+                        .IsUnique();
+
+                    b.ToTable("Inventarios");
+                });
+
+            modelBuilder.Entity("ProyectoMotors.Modelos.Marca", b =>
+                {
+                    b.Property<int>("IdMarca")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdMarca"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("IdMarca");
+
+                    b.ToTable("Marcas");
+                });
+
             modelBuilder.Entity("ProyectoMotors.Modelos.Pedido", b =>
                 {
                     b.Property<int>("IdPedido")
@@ -181,6 +264,45 @@ namespace ProyectoMotors.Migrations
                     b.ToTable("Pedidos");
                 });
 
+            modelBuilder.Entity("ProyectoMotors.Modelos.Producto", b =>
+                {
+                    b.Property<int>("IdProducto")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdProducto"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("IdCategoria")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IdMarca")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<decimal>("Precio")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.HasKey("IdProducto");
+
+                    b.HasIndex("IdCategoria");
+
+                    b.HasIndex("IdMarca");
+
+                    b.ToTable("Productos");
+                });
+
             modelBuilder.Entity("ProyectoMotors.Modelos.DetallePedido", b =>
                 {
                     b.HasOne("ProyectoMotors.Modelos.Pedido", "Pedido")
@@ -189,7 +311,15 @@ namespace ProyectoMotors.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ProyectoMotors.Modelos.Producto", "Producto")
+                        .WithMany("DetallesPedido")
+                        .HasForeignKey("IdProducto")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Pedido");
+
+                    b.Navigation("Producto");
                 });
 
             modelBuilder.Entity("ProyectoMotors.Modelos.Direccion", b =>
@@ -201,6 +331,17 @@ namespace ProyectoMotors.Migrations
                         .IsRequired();
 
                     b.Navigation("Cliente");
+                });
+
+            modelBuilder.Entity("ProyectoMotors.Modelos.Inventario", b =>
+                {
+                    b.HasOne("ProyectoMotors.Modelos.Producto", "Producto")
+                        .WithOne("Inventario")
+                        .HasForeignKey("ProyectoMotors.Modelos.Inventario", "IdProducto")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Producto");
                 });
 
             modelBuilder.Entity("ProyectoMotors.Modelos.Pedido", b =>
@@ -222,6 +363,30 @@ namespace ProyectoMotors.Migrations
                     b.Navigation("Direccion");
                 });
 
+            modelBuilder.Entity("ProyectoMotors.Modelos.Producto", b =>
+                {
+                    b.HasOne("ProyectoMotors.Modelos.Categoria", "Categoria")
+                        .WithMany("Productos")
+                        .HasForeignKey("IdCategoria")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ProyectoMotors.Modelos.Marca", "Marca")
+                        .WithMany("Productos")
+                        .HasForeignKey("IdMarca")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Categoria");
+
+                    b.Navigation("Marca");
+                });
+
+            modelBuilder.Entity("ProyectoMotors.Modelos.Categoria", b =>
+                {
+                    b.Navigation("Productos");
+                });
+
             modelBuilder.Entity("ProyectoMotors.Modelos.Cliente", b =>
                 {
                     b.Navigation("Direcciones");
@@ -229,9 +394,21 @@ namespace ProyectoMotors.Migrations
                     b.Navigation("Pedidos");
                 });
 
+            modelBuilder.Entity("ProyectoMotors.Modelos.Marca", b =>
+                {
+                    b.Navigation("Productos");
+                });
+
             modelBuilder.Entity("ProyectoMotors.Modelos.Pedido", b =>
                 {
                     b.Navigation("Detalles");
+                });
+
+            modelBuilder.Entity("ProyectoMotors.Modelos.Producto", b =>
+                {
+                    b.Navigation("DetallesPedido");
+
+                    b.Navigation("Inventario");
                 });
 #pragma warning restore 612, 618
         }
