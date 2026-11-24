@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5433:5432"          # 5433 en tu máquina para no chocar con tu PostgreSQL local
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -35,6 +35,8 @@ services:
       ConnectionStrings__Connection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Database__MigrateOnStartup: "true"
       DataProtection__KeysPath: /keys
+      Cors__AllowedOrigins: ${FRONTEND_URL}
+      Frontend__Url: ${FRONTEND_URL}
       Auth__Admins: ${AUTH_ADMINS}
       Discord__ClientId: ${DISCORD_CLIENT_ID}
       Discord__ClientSecret: ${DISCORD_CLIENT_SECRET}
@@ -44,6 +46,19 @@ services:
       Google__RedirectUri: ${GOOGLE_REDIRECT_URI}
     volumes:
       - keys:/keys
+    networks:
+      - yostin-net
+
+  web:
+    build:
+      context: ./frontend
+    container_name: yostin-web
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT}:80"
+    environment:
+      API_URL: ${API_URL}
     networks:
       - yostin-net
 
