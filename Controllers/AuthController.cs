@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 
 namespace ProyectoMotors.Controllers;
 
@@ -109,6 +110,101 @@ public class AuthController : ControllerBase
         var username = userJson.RootElement.GetProperty("username").GetString();
 
         await IniciarSesion(id!, username!, "Discord");
+
+        return Redirect(UrlRetorno());
+    }
+
+        // ---------------- TIKTOK (plataforma Desktop, con PKCE) ----------------
+
+    [HttpGet("tiktok/login")]
+    public IActionResult TikTokLogin()
+    {
+        var clientKey = _config["TikTok:ClientKey"];
+        var redirectUri = _config["TikTok:RedirectUri"];
+
+        if (string.IsNullOrEmpty(clientKey) || string.IsNullOrEmpty(redirectUri))
+            return StatusCode(500, "Falta la configuración de TikTok (user-secrets).");
+
+        var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+
+        // PKCE: verifier aleatorio y challenge = SHA256(verifier) en hexadecimal
+        const string permitidos = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+        var verifier = RandomNumberGenerator.GetString(permitidos, 64);
+        var challenge = Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(verifier))).ToLowerInvariant();
+
+        HttpContext.Session.SetString("oauth_state", state);
+        HttpContext.Session.SetString("tiktok_verifier", verifier);
+
+        var url = "https://www.tiktok.com/v2/auth/authorize/"
+                + $"?client_key={Uri.EscapeDataString(clientKey)}"
+                + "&scope=user.info.basic"
+                + "&response_type=code"
+                + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
+                + $"&state={state}"
+                + $"&code_challenge={challenge}"
+                + "&code_challenge_method=S256";
+
+        return Redirect(url);
+    }
+
+    [HttpGet("tiktok/callback")]
+    public async Task<IActionResult> TikTokCallback(string? code, string? state, string? error)
+    {
+        if (!string.IsNullOrEmpty(error))
+            return BadRequest($"TikTok devolvió un error: {error}");
+
+        var expectedState = HttpContext.Session.GetString("oauth_state");
+        var verifier = HttpContext.Session.GetString("tiktok_verifier");
+        if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state) || state != expectedState
+            || string.IsNullOrEmpty(verifier))
+            return BadRequest("Estado inválido o código ausente.");
+
+        HttpContext.Session.Remove("oauth_state");
+        HttpContext.Session.Remove("tiktok_verifier");
+
+        var client = _httpFactory.CreateClient();
+
+        // Cambiar el code (más el verifier) por un access_token
+        var tokenResponse = await client.PostAsync("https://open.tiktokapis.com/v2/oauth/token/",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_key"] = _config["TikTok:ClientKey"]!,
+                ["client_secret"] = _config["TikTok:ClientSecret"]!,
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["redirect_uri"] = _config["TikTok:RedirectUri"]!,
+                ["code_verifier"] = verifier
+            }));
+
+        using var tokenJson = JsonDocument.Parse(await tokenResponse.Content.ReadAsStringAsync());
+        if (!tokenJson.RootElement.TryGetProperty("access_token", out var tokenEl))
+            return StatusCode(502, "No se pudo obtener el token de TikTok.");
+
+        var accessToken = tokenEl.GetString();
+        var openId = tokenJson.RootElement.TryGetProperty("open_id", out var o) ? o.GetString() : null;
+
+        // Pedir el nombre público del usuario
+        var request = new HttpRequestMessage(HttpMethod.Get,
+            "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        var userResponse = await client.SendAsync(request);
+
+        string? nombre = null;
+        if (userResponse.IsSuccessStatusCode)
+        {
+            using var userJson = JsonDocument.Parse(await userResponse.Content.ReadAsStringAsync());
+            if (userJson.RootElement.TryGetProperty("data", out var data) &&
+                data.TryGetProperty("user", out var user))
+            {
+                nombre = user.TryGetProperty("display_name", out var dn) ? dn.GetString() : null;
+                openId ??= user.TryGetProperty("open_id", out var oid) ? oid.GetString() : null;
+            }
+        }
+
+        if (string.IsNullOrEmpty(openId))
+            return StatusCode(502, "No se pudo obtener la identidad de TikTok.");
+
+        await IniciarSesion(openId, nombre ?? "Usuario TikTok", "TikTok");
 
         return Redirect(UrlRetorno());
     }
