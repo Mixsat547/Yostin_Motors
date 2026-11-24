@@ -42,6 +42,13 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Aplica las migraciones al iniciar si Database:MigrateOnStartup es true (usado en Docker)
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

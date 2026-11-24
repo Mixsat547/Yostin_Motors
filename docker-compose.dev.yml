@@ -1,0 +1,55 @@
+name: yostinmotors-dev
+
+services:
+  db:
+    image: postgres:16
+    container_name: yostin-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"          # 5433 en tu máquina para no chocar con tu PostgreSQL local
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - yostin-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.YeltsinSardina
+    container_name: yostin-api
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Connection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Database__MigrateOnStartup: "true"
+      DataProtection__KeysPath: /keys
+      Auth__Admins: ${AUTH_ADMINS}
+      Discord__ClientId: ${DISCORD_CLIENT_ID}
+      Discord__ClientSecret: ${DISCORD_CLIENT_SECRET}
+      Discord__RedirectUri: ${DISCORD_REDIRECT_URI}
+      Google__ClientId: ${GOOGLE_CLIENT_ID}
+      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET}
+      Google__RedirectUri: ${GOOGLE_REDIRECT_URI}
+    volumes:
+      - keys:/keys
+    networks:
+      - yostin-net
+
+networks:
+  yostin-net:
+
+volumes:
+  pgdata:
+  keys:

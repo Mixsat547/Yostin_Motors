@@ -4,4 +4,4 @@ obj/
 .vs/
 keys/
 appsettings.json
-*.zip
+*.zip.env
