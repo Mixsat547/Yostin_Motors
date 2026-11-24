@@ -44,6 +44,9 @@ services:
       Google__ClientId: ${GOOGLE_CLIENT_ID}
       Google__ClientSecret: ${GOOGLE_CLIENT_SECRET}
       Google__RedirectUri: ${GOOGLE_REDIRECT_URI}
+      TikTok__ClientKey: ${TIKTOK_CLIENT_KEY}
+      TikTok__ClientSecret: ${TIKTOK_CLIENT_SECRET}
+      TikTok__RedirectUri: ${TIKTOK_REDIRECT_URI}
     volumes:
       - keys:/keys
     networks:
