@@ -13,6 +13,8 @@
     .discord { background: #5865f2; }
     .google { background: #db4437; }
     pre { background: #111; color: #9f9; padding: 12px; border-radius: 6px; overflow: auto; max-height: 260px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
     [hidden] { display: none; }
   </style>
 </head>
@@ -39,6 +41,15 @@
     <h2>Recurso protegido</h2>
     <button id="clientes">Consultar clientes</button>
     <pre id="resultado">Pulsa el botón para consultar /api/clientes</pre>
+  </section>
+
+  <section id="seccionReporte" hidden>
+    <h2>Reporte: clientes y pedidos</h2>
+    <button id="reporte">Ver reporte</button>
+    <p id="estadoReporte"></p>
+    <div style="overflow:auto">
+      <table id="tablaReporte" hidden></table>
+    </div>
   </section>
 </main>
 
@@ -72,9 +83,13 @@
       $("userId").textContent = u.userId;
       $("login").hidden = true;
       $("sesion").hidden = false;
+      $("seccionReporte").hidden = false;
     } else {
       $("login").hidden = false;
       $("sesion").hidden = true;
+      $("seccionReporte").hidden = true;
+      $("tablaReporte").hidden = true;
+      $("estadoReporte").textContent = "";
     }
   }
 
@@ -88,6 +103,23 @@
     const r = await fetch(`${API}/api/clientes`, { credentials: "include" });
     const texto = r.ok ? JSON.stringify(await r.json(), null, 2) : "";
     $("resultado").textContent = `HTTP ${r.status}\n` + texto;
+  });
+
+  $("reporte").addEventListener("click", async () => {
+    const r = await fetch(`${API}/api/reportes/clientes-pedidos`, { credentials: "include" });
+    const estado = $("estadoReporte");
+    const tabla = $("tablaReporte");
+    if (!r.ok) {
+      estado.textContent = `HTTP ${r.status}: ` +
+        (r.status === 401 ? "no hay sesión." : r.status === 403 ? "no tienes permiso para este reporte." : "error.");
+      tabla.hidden = true;
+      return;
+    }
+    const filas = await r.json();
+    estado.textContent = `HTTP 200: ${filas.length} cliente(s)`;
+    tabla.innerHTML = "<tr><th>Cliente</th><th>Correo</th><th>Ciudad</th><th>Pedidos</th><th>Artículos</th><th>Monto total</th></tr>" +
+      filas.map(f => `<tr><td>${f.cliente}</td><td>${f.correo}</td><td>${f.ciudad ?? "-"}</td><td>${f.totalPedidos}</td><td>${f.articulos}</td><td>${Number(f.montoTotal).toFixed(2)}</td></tr>`).join("");
+    tabla.hidden = false;
   });
 
   cargarSesion();
