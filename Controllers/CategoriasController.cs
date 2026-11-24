@@ -16,12 +16,12 @@ public class CategoriasController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Categoria>>> GetLista()
-        => Ok(await _db.Categorias.AsNoTracking().ToListAsync());
+        => Ok(await _db.Categorias.AsNoTracking().Where(x => x.Activo).ToListAsync());
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Categoria>> GetPorId(int id)
     {
-        var item = await _db.Categorias.FirstOrDefaultAsync(x => x.IdCategoria == id);
+        var item = await _db.Categorias.FirstOrDefaultAsync(x => x.IdCategoria == id && x.Activo);
         return item is null ? NotFound() : Ok(item);
     }
 
@@ -38,7 +38,7 @@ public class CategoriasController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Put(int id, Categoria datos)
     {
-        var item = await _db.Categorias.FirstOrDefaultAsync(x => x.IdCategoria == id);
+        var item = await _db.Categorias.FirstOrDefaultAsync(x => x.IdCategoria == id && x.Activo);
         if (item is null) return NotFound();
 
         item.Nombre = datos.Nombre;
@@ -47,4 +47,14 @@ public class CategoriasController : ControllerBase
         return NoContent();
     }
 
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var item = await _db.Categorias.FirstOrDefaultAsync(x => x.IdCategoria == id && x.Activo);
+        if (item is null) return NotFound();
+
+        item.Activo = false;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }

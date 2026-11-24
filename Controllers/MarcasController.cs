@@ -16,12 +16,12 @@ public class MarcasController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Marca>>> GetLista()
-        => Ok(await _db.Marcas.AsNoTracking().ToListAsync());
+        => Ok(await _db.Marcas.AsNoTracking().Where(x => x.Activo).ToListAsync());
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Marca>> GetPorId(int id)
     {
-        var item = await _db.Marcas.FirstOrDefaultAsync(x => x.IdMarca == id);
+        var item = await _db.Marcas.FirstOrDefaultAsync(x => x.IdMarca == id && x.Activo);
         return item is null ? NotFound() : Ok(item);
     }
 
@@ -38,7 +38,7 @@ public class MarcasController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Put(int id, Marca datos)
     {
-        var item = await _db.Marcas.FirstOrDefaultAsync(x => x.IdMarca == id);
+        var item = await _db.Marcas.FirstOrDefaultAsync(x => x.IdMarca == id && x.Activo);
         if (item is null) return NotFound();
 
         item.Nombre = datos.Nombre;
@@ -47,4 +47,14 @@ public class MarcasController : ControllerBase
         return NoContent();
     }
 
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var item = await _db.Marcas.FirstOrDefaultAsync(x => x.IdMarca == id && x.Activo);
+        if (item is null) return NotFound();
+
+        item.Activo = false;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }

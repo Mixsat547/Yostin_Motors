@@ -16,19 +16,19 @@ public class InventariosController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Inventario>>> GetLista()
-        => Ok(await _db.Inventarios.AsNoTracking().ToListAsync());
+        => Ok(await _db.Inventarios.AsNoTracking().Where(x => x.Activo).ToListAsync());
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Inventario>> GetPorId(int id)
     {
-        var item = await _db.Inventarios.FirstOrDefaultAsync(x => x.IdInventario == id);
+        var item = await _db.Inventarios.FirstOrDefaultAsync(x => x.IdInventario == id && x.Activo);
         return item is null ? NotFound() : Ok(item);
     }
 
     [HttpPost]
     public async Task<ActionResult<Inventario>> Post(Inventario item)
     {
-        if (!await _db.Productos.AnyAsync(x => x.IdProducto == item.IdProducto))
+        if (!await _db.Productos.AnyAsync(x => x.IdProducto == item.IdProducto && x.Activo))
             return BadRequest(new { mensaje = "El producto no existe o está inactivo." });
 
         if (await _db.Inventarios.AnyAsync(x => x.IdProducto == item.IdProducto))
@@ -45,10 +45,10 @@ public class InventariosController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Put(int id, Inventario datos)
     {
-        var item = await _db.Inventarios.FirstOrDefaultAsync(x => x.IdInventario == id);
+        var item = await _db.Inventarios.FirstOrDefaultAsync(x => x.IdInventario == id && x.Activo);
         if (item is null) return NotFound();
 
-        if (!await _db.Productos.AnyAsync(x => x.IdProducto == datos.IdProducto))
+        if (!await _db.Productos.AnyAsync(x => x.IdProducto == datos.IdProducto && x.Activo))
             return BadRequest(new { mensaje = "El producto no existe o está inactivo." });
 
         if (await _db.Inventarios.AnyAsync(x => x.IdProducto == datos.IdProducto && x.IdInventario != id))
@@ -62,4 +62,14 @@ public class InventariosController : ControllerBase
         return NoContent();
     }
 
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var item = await _db.Inventarios.FirstOrDefaultAsync(x => x.IdInventario == id && x.Activo);
+        if (item is null) return NotFound();
+
+        item.Activo = false;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }
