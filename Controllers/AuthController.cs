@@ -21,15 +21,19 @@ public class AuthController : ControllerBase
         _httpFactory = httpFactory;
     }
 
-    // Crea la cookie de autenticación con la identidad del usuario
-    private async Task IniciarSesion(string id, string nombre, string proveedor)
+        private async Task IniciarSesion(string id, string nombre, string proveedor)
     {
+        // Lista de administradores, con el formato Proveedor:Id separados por coma
+        var admins = (_config["Auth:Admins"] ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var rol = admins.Contains($"{proveedor}:{id}") ? "Administrador" : "Usuario";
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, id),
             new(ClaimTypes.Name, nombre),
             new("provider", proveedor),
-            new(ClaimTypes.Role, "Usuario")
+            new(ClaimTypes.Role, rol)
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
