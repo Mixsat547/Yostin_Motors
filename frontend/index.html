@@ -53,9 +53,10 @@
   </section>
 </main>
 
+<script src="config.js"></script>
 <script>
-  // Dirección de la API. Vacía = el mismo servidor que sirve esta página.
-  const API = "";
+  // Dirección de la API, definida en config.js (variable API_URL del Compose).
+  const API = window.APP_CONFIG.API_URL;
 
   // Un botón por cada proveedor implementado
   const PROVEEDORES = [

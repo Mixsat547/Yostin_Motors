@@ -20,6 +20,9 @@ public class AuthController : ControllerBase
         _config = config;
         _httpFactory = httpFactory;
     }
+        // Adónde vuelve el usuario tras el login: la URL del frontend, o "/" si no hay
+    private string UrlRetorno() =>
+        string.IsNullOrEmpty(_config["Frontend:Url"]) ? "/" : _config["Frontend:Url"]!;
 
         private async Task IniciarSesion(string id, string nombre, string proveedor)
     {
@@ -107,7 +110,7 @@ public class AuthController : ControllerBase
 
         await IniciarSesion(id!, username!, "Discord");
 
-        return Redirect("/");
+        return Redirect(UrlRetorno());
     }
 
     // ---------------- GOOGLE ----------------
@@ -177,7 +180,7 @@ public class AuthController : ControllerBase
 
         await IniciarSesion(id!, name ?? "Usuario Google", "Google");
 
-        return Redirect("/");
+        return Redirect(UrlRetorno());
     }
 
     // ---------------- SESIÓN ----------------
