@@ -1,16 +1,20 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace ProyectoMotors.Filtros;
 
-// Rechaza con 401 cualquier petición que no tenga una sesión iniciada
 public class SesionRequeridaAttribute : Attribute, IAsyncActionFilter
 {
-    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    public async Task OnActionExecutionAsync(
+        ActionExecutingContext context,
+        ActionExecutionDelegate next)
     {
-        var userId = context.HttpContext.Session.GetString("UserId");
+        var usuario = context.HttpContext.User;
+        var userId = usuario.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        if (string.IsNullOrEmpty(userId))
+        if (usuario.Identity?.IsAuthenticated != true ||
+            string.IsNullOrEmpty(userId))
         {
             context.Result = new UnauthorizedObjectResult(
                 new { mensaje = "Debes iniciar sesión para usar este recurso." });
