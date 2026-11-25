@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yostin Motors</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f4f6; margin: 0; }
+    main { max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    section { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    h1 { margin-top: 0; }
+    .btn, button { display: inline-block; padding: 10px 16px; border: 0; border-radius: 6px; color: #fff; text-decoration: none; cursor: pointer; font-size: 15px; margin-right: 8px; background: #333; }
+    .discord { background: #5865f2; }
+    .google { background: #db4437; }
+    .tiktok { background: #111; }
+    .microsoft { background: #2f6fed; }
+    .twitch { background: #9146ff; }
+    pre { background: #111; color: #9f9; padding: 12px; border-radius: 6px; overflow: auto; max-height: 260px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Yostin Motors</h1>
+
+  <section id="login">
+    <p>Inicia sesión con:</p>
+    <div id="botones"></div>
+  </section>
+
+  <section id="sesion" hidden>
+    <p>Sesión iniciada como <strong id="nombre"></strong></p>
+    <ul>
+      <li>Proveedor: <span id="proveedor"></span></li>
+      <li>Rol: <span id="rol"></span></li>
+      <li>Id: <span id="userId"></span></li>
+    </ul>
+    <button id="logout">Cerrar sesión</button>
+  </section>
+
+  <section>
+    <h2>Recurso protegido</h2>
+    <button id="clientes">Consultar clientes</button>
+    <pre id="resultado">Pulsa el botón para consultar /api/clientes</pre>
+  </section>
+
+  <section id="seccionReporte" hidden>
+    <h2>Reporte: clientes y pedidos</h2>
+    <button id="reporte">Ver reporte</button>
+    <p id="estadoReporte"></p>
+    <div style="overflow:auto">
+      <table id="tablaReporte" hidden></table>
+    </div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script>
+  // Dirección de la API, definida en config.js (variable API_URL del Compose).
+  const API = window.APP_CONFIG.API_URL;
+
+  // Un botón por cada proveedor implementado
+  const PROVEEDORES = [
+    { id: "discord", nombre: "Discord", clase: "discord" },
+    { id: "google", nombre: "Google", clase: "google" },
+    { id: "tiktok", nombre: "TikTok", clase: "tiktok" },
+    { id: "microsoft", nombre: "Microsoft", clase: "microsoft" },
+    { id: "twitch", nombre: "Twitch", clase: "twitch" }
+  ];
+
+  const $ = id => document.getElementById(id);
+
+  PROVEEDORES.forEach(p => {
+    const a = document.createElement("a");
+    a.className = "btn " + p.clase;
+    a.href = `${API}/api/auth/${p.id}/login`;
+    a.textContent = "Entrar con " + p.nombre;
+    $("botones").appendChild(a);
+  });
+
+  async function cargarSesion() {
+    const r = await fetch(`${API}/api/auth/me`, { credentials: "include" });
+    if (r.ok) {
+      const u = await r.json();
+      $("nombre").textContent = u.userName;
+      $("proveedor").textContent = u.provider;
+      $("rol").textContent = u.rol;
+      $("userId").textContent = u.userId;
+      $("login").hidden = true;
+      $("sesion").hidden = false;
+      $("seccionReporte").hidden = false;
+    } else {
+      $("login").hidden = false;
+      $("sesion").hidden = true;
+      $("seccionReporte").hidden = true;
+      $("tablaReporte").hidden = true;
+      $("estadoReporte").textContent = "";
+    }
+  }
+
+  $("logout").addEventListener("click", async () => {
+    await fetch(`${API}/api/auth/logout`, { credentials: "include" });
+    $("resultado").textContent = "Sesión cerrada.";
+    await cargarSesion();
+  });
+
+  $("clientes").addEventListener("click", async () => {
+    const r = await fetch(`${API}/api/clientes`, { credentials: "include" });
+    const texto = r.ok ? JSON.stringify(await r.json(), null, 2) : "";
+    $("resultado").textContent = `HTTP ${r.status}\n` + texto;
+  });
+
+  $("reporte").addEventListener("click", async () => {
+    const r = await fetch(`${API}/api/reportes/clientes-pedidos`, { credentials: "include" });
+    const estado = $("estadoReporte");
+    const tabla = $("tablaReporte");
+    if (!r.ok) {
+      estado.textContent = `HTTP ${r.status}: ` +
+        (r.status === 401 ? "no hay sesión." : r.status === 403 ? "no tienes permiso para este reporte." : "error.");
+      tabla.hidden = true;
+      return;
+    }
+    const filas = await r.json();
+    estado.textContent = `HTTP 200: ${filas.length} cliente(s)`;
+    tabla.innerHTML = "<tr><th>Cliente</th><th>Correo</th><th>Ciudad</th><th>Pedidos</th><th>Artículos</th><th>Monto total</th></tr>" +
+      filas.map(f => `<tr><td>${f.cliente}</td><td>${f.correo}</td><td>${f.ciudad ?? "-"}</td><td>${f.totalPedidos}</td><td>${f.articulos}</td><td>${Number(f.montoTotal).toFixed(2)}</td></tr>`).join("");
+    tabla.hidden = false;
+  });
+
+  cargarSesion();
+</script>
+</body>
+</html>

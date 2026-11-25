@@ -1,0 +1,79 @@
+name: yostinmotors-dev
+
+services:
+  db:
+    image: postgres:16
+    container_name: yostin-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - yostin-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.YeltsinSardina
+    container_name: yostin-api
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Connection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Database__MigrateOnStartup: "true"
+      DataProtection__KeysPath: /keys
+      Cors__AllowedOrigins: ${FRONTEND_URL}
+      Frontend__Url: ${FRONTEND_URL}
+      Auth__Admins: ${AUTH_ADMINS}
+      Discord__ClientId: ${DISCORD_CLIENT_ID}
+      Discord__ClientSecret: ${DISCORD_CLIENT_SECRET}
+      Discord__RedirectUri: ${DISCORD_REDIRECT_URI}
+      Google__ClientId: ${GOOGLE_CLIENT_ID}
+      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET}
+      Google__RedirectUri: ${GOOGLE_REDIRECT_URI}
+      TikTok__ClientKey: ${TIKTOK_CLIENT_KEY}
+      TikTok__ClientSecret: ${TIKTOK_CLIENT_SECRET}
+      TikTok__RedirectUri: ${TIKTOK_REDIRECT_URI}
+      Microsoft__ClientId: ${MICROSOFT_CLIENT_ID}
+      Microsoft__ClientSecret: ${MICROSOFT_CLIENT_SECRET}
+      Microsoft__RedirectUri: ${MICROSOFT_REDIRECT_URI}
+      Twitch__ClientId: ${TWITCH_CLIENT_ID}
+      Twitch__ClientSecret: ${TWITCH_CLIENT_SECRET}
+      Twitch__RedirectUri: ${TWITCH_REDIRECT_URI}
+    volumes:
+      - keys:/keys
+    networks:
+      - yostin-net
+
+  web:
+    build:
+      context: ./frontend
+    container_name: yostin-web
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT}:80"
+    environment:
+      API_URL: ${API_URL}
+    networks:
+      - yostin-net
+
+networks:
+  yostin-net:
+
+volumes:
+  pgdata:
+  keys:

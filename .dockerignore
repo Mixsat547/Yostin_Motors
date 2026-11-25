@@ -1,0 +1,8 @@
+bin/
+obj/
+.git/
+.vs/
+keys/
+appsettings.json
+*.zip.env
+frontend/

@@ -12,8 +12,6 @@ namespace ProyectoMotors.Modelos
 
         public int IdPedido { get; set; }
 
-        // Apunta a Productos (tabla del otro integrante).
-        // Por ahora es solo una columna; la llave foránea se agrega cuando su PR esté integrada.
         public int IdProducto { get; set; }
 
         public int Cantidad { get; set; }
@@ -28,5 +26,8 @@ namespace ProyectoMotors.Modelos
 
         [ForeignKey(nameof(IdPedido)), JsonIgnore]
         public Pedido? Pedido { get; set; }
+
+        [ForeignKey(nameof(IdProducto)), JsonIgnore]
+        public Producto? Producto { get; set; }
     }
 }
