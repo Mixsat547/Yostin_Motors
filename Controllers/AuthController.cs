@@ -39,6 +39,11 @@ public class AuthController : ControllerBase
             new("provider", proveedor),
             new(ClaimTypes.Role, rol)
         };
+        // Mantener compatibilidad con los controladores que usan [SesionRequerida].
+        HttpContext.Session.SetString("UserId", id);
+        HttpContext.Session.SetString("UserName", nombre);
+        HttpContext.Session.SetString("Provider", proveedor);
+
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity));
@@ -396,11 +401,9 @@ public class AuthController : ControllerBase
         var id = user.GetProperty("id").GetString();
         var name = user.GetProperty("display_name").GetString();
 
-        HttpContext.Session.SetString("UserId", id!);
-        HttpContext.Session.SetString("UserName", name ?? "Usuario Twitch");
-        HttpContext.Session.SetString("Provider", "Twitch");
+        await IniciarSesion(id!, name ?? "Usuario Twitch", "Twitch");
 
-        return Redirect("/api/auth/me");
+        return Redirect(UrlRetorno());
     }
         // MICROSOFT
 
@@ -497,11 +500,9 @@ public class AuthController : ControllerBase
             ? displayName.GetString()
             : "Usuario Microsoft";
 
-        HttpContext.Session.SetString("UserId", id!);
-        HttpContext.Session.SetString("UserName", name ?? "Usuario Microsoft");
-        HttpContext.Session.SetString("Provider", "Microsoft");
+        await IniciarSesion(id!, name ?? "Usuario Microsoft", "Microsoft");
 
-        return Redirect("/api/auth/me");
+        return Redirect(UrlRetorno());
     }
 
 }
